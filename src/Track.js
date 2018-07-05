@@ -360,7 +360,21 @@ export default class {
           style: `height: ${numChan * data.height}px; width: ${data.controls.width}px; position: absolute; left: 0; z-index: 10;`,
         },
       }, [
-        h('header', [this.name]),
+        h('header', [
+          h('span', {
+            attributes: {
+              style: `width: 20px; float: left; cursor: pointer`
+            },
+            onclick: () => {
+              this.ee.emit('close', this);
+            }
+          }, ['X']),
+          h('div', {
+            attributes: {
+              style: `width: ${data.controls.width - 40}px; float: left;`
+            }
+          }, [this.name]),
+        ]),
         h('div.btn-group', [
           h(`span.btn.btn-default.btn-xs.btn-mute${muteClass}`, {
             onclick: () => {

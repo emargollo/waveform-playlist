@@ -243,6 +243,11 @@ export default class {
       this.drawRequest();
     });
 
+    ee.on('close', (track) => {
+      this.removeTrack(track);
+      this.drawRequest();
+    })
+
     ee.on('volumechange', (volume, track) => {
       track.setGainLevel(volume / 100);
     });
@@ -535,6 +540,11 @@ export default class {
     } else {
       this.mutedTracks.push(track);
     }
+  }
+
+  removeTrack(track) {
+    const index = this.tracks.indexOf(track);
+    this.tracks.splice(index, 1);
   }
 
   soloTrack(track) {

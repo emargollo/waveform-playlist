@@ -61,7 +61,11 @@
     "virtual-dom": "^2.1.1",
     "webaudio-peaks": "^0.0.6"
   },
+  "watch": {
+    "compile": "{src,test}/*.js"
+  },
   "scripts": {
+    "watch": "npm-watch",
     "clean": "rm -Rf dist && rm -Rf lib && rm -Rf styles",
     "styles": "mkdir -p styles && cp ghpages/_sass/_playlist.scss styles/playlist.scss",
     "compile": "babel src --out-dir lib",
@@ -73,11 +77,11 @@
     "version": "npm run build && git add -A dist",
     "postversion": "git push && git push --tags",
     "prepublish": "npm run compile && npm run styles",
-    "webpack:server": "node_modules/webpack-dev-server/bin/webpack-dev-server.js --content-base dist/ --colors --host 0.0.0.0 --inline",
+    "webpack:server": "node node_modules/webpack-dev-server/bin/webpack-dev-server.js --content-base dist/ --colors --host 0.0.0.0 --inline",
     "start": "npm run webpack:server",
     "dev": "npm run jekyll:dev && npm run webpack:server",
-    "test": "node_modules/karma/bin/karma start --browsers Firefox --single-run",
-    "eslint": "node_modules/.bin/eslint src"
+    "test": "node node_modules/karma/bin/karma start --browsers Firefox --single-run",
+    "eslint": "node node_modules/.bin/eslint src"
   },
   "repository": {
     "type": "git",
