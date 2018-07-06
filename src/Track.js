@@ -12,6 +12,7 @@ import stateClasses from './track/states';
 
 import CanvasHook from './render/CanvasHook';
 import FadeCanvasHook from './render/FadeCanvasHook';
+import MuteCanvasHook from './render/MuteCanvasHook';
 import VolumeSliderHook from './render/VolumeSliderHook';
 
 const MAX_CANVAS_WIDTH = 1000;
@@ -24,6 +25,7 @@ export default class {
     this.waveOutlineColor = undefined;
     this.gain = 1;
     this.fades = {};
+    this.mutes = [];
     this.peakData = {
       type: 'WebAudio',
       mono: false,
@@ -81,6 +83,18 @@ export default class {
         this.setStartTime(start);
       }
     }
+  }
+
+  silence(start, end) {
+    const trackStart = this.getStartTime();
+    const trackEnd = this.getEndTime();
+    const offset = this.cueIn - trackStart;
+
+    this.mutes.push({
+      start: start,
+      end: end
+    })
+
   }
 
   setStartTime(start) {
@@ -314,6 +328,7 @@ export default class {
     playoutSystem.setVolumeGainLevel(this.gain);
     playoutSystem.setShouldPlay(options.shouldPlay);
     playoutSystem.setMasterGainLevel(options.masterGain);
+    playoutSystem.setVolumeGainMutes(this.mutes, when - start);
     playoutSystem.play(when, start, duration);
 
     return sourcePromise;
@@ -444,6 +459,41 @@ export default class {
 
         totalWidth -= currentWidth;
         offset += MAX_CANVAS_WIDTH;
+      }
+      for(var i = 0; i < this.mutes.length; i++) {
+        const mute = this.mutes[i];
+        const muteStart = secondsToPixels(
+          mute.start,
+          data.resolution,
+          data.sampleRate
+        );
+        const muteWidth = secondsToPixels(
+          mute.end - mute.start,
+          data.resolution,
+          data.sampleRate
+        );
+
+        channelChildren.push(h(`div.wp-fade.wp-mute`,
+          {
+            attributes: {
+              style: `position: absolute; height: ${data.height}px; width: ${muteWidth}px; top: 0; left: ${muteStart}px; z-index: 4;`,
+            },
+          }, [
+            h('canvas',
+              {
+                attributes: {
+                  width: muteWidth,
+                  height: data.height
+                },
+                hook: new MuteCanvasHook(
+                  mute.end - mute.start,
+                  data.resolution,
+                  muteStart
+                ),
+              },
+            ),
+          ]
+        ));
       }
 
       // if there are fades, display them.

@@ -61,6 +61,9 @@
     "virtual-dom": "^2.1.1",
     "webaudio-peaks": "^0.0.6"
   },
+  "watch": {
+    "compile": "{src,test,src/render}/*.js"
+  },
   "scripts": {
     "clean": "rm -Rf dist && rm -Rf lib && rm -Rf styles",
     "styles": "mkdir -p styles && cp ghpages/_sass/_playlist.scss styles/playlist.scss",

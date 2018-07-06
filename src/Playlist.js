@@ -286,6 +286,14 @@ export default class {
       this.drawRequest();
     });
 
+    ee.on('silence', () => {
+      const track = this.getActiveTrack();
+      const timeSelection = this.getTimeSelection();
+
+      track.silence(timeSelection.start, timeSelection.end);
+      this.drawRequest();
+    })
+
     ee.on('zoomin', () => {
       const zoomIndex = Math.max(0, this.zoomIndex - 1);
       const zoom = this.zoomLevels[zoomIndex];

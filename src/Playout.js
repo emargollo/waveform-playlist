@@ -86,6 +86,14 @@ export default class {
     }
   }
 
+  setVolumeGainMutes(mutes, timePosition) {
+    var value = this.volumeGain.gain.value;
+    for(var i = 0; i < mutes.length; i++) {
+      this.volumeGain.gain.setValueAtTime(0, mutes[i].start + timePosition);
+      this.volumeGain.gain.setValueAtTime(value, mutes[i].end + timePosition);
+    }
+  }
+
   setShouldPlay(bool) {
     if (this.shouldPlayGain) {
       this.shouldPlayGain.gain.value = bool ? 1 : 0;
@@ -105,6 +113,9 @@ export default class {
     Unfortunately it doesn't seem to work if you just give it a start time.
   */
   play(when, start, duration) {
+    console.log(when)
+    console.log(start)
+    console.log(duration)
     this.source.start(when, start, duration);
   }
 
