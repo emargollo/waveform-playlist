@@ -86,9 +86,29 @@ export default class {
   }
 
   silence(start, end) {
-    const trackStart = this.getStartTime();
-    const trackEnd = this.getEndTime();
-    const offset = this.cueIn - trackStart;
+    var mutesToRemove = [];
+
+    for(var i = 0; i < this.mutes.length; i++) {
+      var remove = false;
+      if(start > this.mutes[i].start && start < this.mutes[i].end) {
+        start = this.mutes[i].start;
+        remove = true;
+      }
+      if(end > this.mutes[i].start && end < this.mutes[i].end) {
+        end = this.mutes[i].end;
+        remove = true;
+      }
+      if(start < this.mutes[i].start && end > this.mutes[i].end) {
+        remove = true;
+      }
+      if(remove == true) {
+        mutesToRemove.push(i);
+      }
+    }
+
+    for(var i = mutesToRemove.length -1; i >= 0; i--) {
+      this.mutes.splice(mutesToRemove[i], 1);
+    }
 
     this.mutes.push({
       start: start,
@@ -462,18 +482,24 @@ export default class {
       }
       for(var i = 0; i < this.mutes.length; i++) {
         const mute = this.mutes[i];
+
+        const relStart = this.cueIn > mute.start? this.cueIn : mute.start;
+        const relEnd = this.cueOut < mute.end? this.cueOut : mute.end;
+
         const muteStart = secondsToPixels(
-          mute.start,
+          relStart - this.cueIn,
           data.resolution,
           data.sampleRate
         );
         const muteWidth = secondsToPixels(
-          mute.end - mute.start,
+          relEnd - relStart,
           data.resolution,
           data.sampleRate
         );
 
-        channelChildren.push(h(`div.wp-fade.wp-mute`,
+        if(muteWidth < 0) continue;
+
+        channelChildren.push(h(`div.wp-mute`,
           {
             attributes: {
               style: `position: absolute; height: ${data.height}px; width: ${muteWidth}px; top: 0; left: ${muteStart}px; z-index: 4;`,
@@ -486,7 +512,7 @@ export default class {
                   height: data.height
                 },
                 hook: new MuteCanvasHook(
-                  mute.end - mute.start,
+                  relEnd - relStart,
                   data.resolution,
                   muteStart
                 ),

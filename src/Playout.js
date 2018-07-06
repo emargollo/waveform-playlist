@@ -113,9 +113,6 @@ export default class {
     Unfortunately it doesn't seem to work if you just give it a start time.
   */
   play(when, start, duration) {
-    console.log(when)
-    console.log(start)
-    console.log(duration)
     this.source.start(when, start, duration);
   }
 
