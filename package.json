@@ -62,7 +62,7 @@
     "webaudio-peaks": "^0.0.6"
   },
   "watch": {
-    "compile": "{src,test}/*.js"
+    "compile": "{src,test,src/render}/*.js"
   },
   "scripts": {
     "watch": "npm-watch",
