@@ -86,6 +86,13 @@ export default class {
   }
 
   silence(start, end) {
+
+    const trackStart = this.getStartTime();
+    const offset = this.cueIn - trackStart;
+
+    start += offset;
+    end += offset;
+
     var mutesToRemove = [];
 
     for(var i = 0; i < this.mutes.length; i++) {
