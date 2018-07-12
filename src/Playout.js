@@ -40,6 +40,10 @@ export default class {
     this.destination = this.ac.destination;
   }
 
+  setBuffer(buffer) {
+    this.buffer = buffer;
+  }
+
   setUpSource() {
     this.source = this.ac.createBufferSource();
     this.source.buffer = this.buffer;

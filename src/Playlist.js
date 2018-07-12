@@ -15,6 +15,7 @@ import AnnotationList from './annotation/AnnotationList';
 
 import RecorderWorkerFunction from './utils/recorderWorker';
 import ExportWavWorkerFunction from './utils/exportWavWorker';
+import bufferToWav from 'audiobuffer-to-wav';
 
 export default class {
   constructor() {
@@ -273,6 +274,39 @@ export default class {
         src: file,
         name: file.name,
       }]);
+    });
+
+    ee.on('addtrack', (data) => {
+      // this.audioBufferRender(audioBuffer);
+      var wav = bufferToWav(data.buffer);
+      var blob = new Blob([new DataView(wav)], {type: 'audio/wav'});
+      this.load([{
+        src: blob,
+        name: data.name,
+        start: data.start
+      }]);
+    });
+
+    ee.on('slice', () => {
+      const track = this.getActiveTrack();
+      const timeSelection = this.getTimeSelection();
+
+      track.slice(timeSelection.start, timeSelection.end);
+      track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
+
+      this.setTimeSelection(0, 0);
+      this.drawRequest();
+    });
+
+    ee.on('deleteselection', () => {
+      const track = this.getActiveTrack();
+      const timeSelection = this.getTimeSelection();
+
+      track.deleteSelection(timeSelection.start, timeSelection.end);
+      track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
+
+      this.setTimeSelection(0, 0);
+      this.drawRequest();
     });
 
     ee.on('trim', () => {
