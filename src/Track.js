@@ -227,6 +227,10 @@ export default class {
     }
   }
 
+  setMutes(mutes) {
+    this.mutes = mutes;
+  }
+
   getStartTime() {
     return this.startTime;
   }
