@@ -288,7 +288,8 @@ export default class {
       this.load([{
         src: blob,
         name: data.name,
-        start: data.start
+        start: data.start,
+        mutes: data.mutes,
       }]);
     });
 

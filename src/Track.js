@@ -84,6 +84,29 @@ export default class {
       self.playout.setBuffer(slicedAudioBuffer);
       if (start > trackStart) {
         self.setStartTime(start);
+        self.duration = self.buffer.duration;
+        self.endTime = self.startTime + self.duration;
+
+        var startOffset = trackStart - start;
+
+        var mutesToRemove = [];
+
+        for(var i = 0; i < self.mutes.length; i++) {
+          self.mutes[i].start += startOffset;
+          self.mutes[i].end += startOffset;
+
+          if(self.mutes[i].end > self.duration) {
+            if(self.mutes[i].start < self.duration) {
+              self.mutes[i].end = self.duration;
+            } else {
+              mutesToRemove.push(i);
+            }
+          }
+        }
+
+        for(var i = mutesToRemove.length -1; i >= 0; i--) {
+          self.mutes.splice(mutesToRemove[i], 1);
+        }
       }
     })
   }
@@ -105,10 +128,27 @@ export default class {
         return console.log(error);
       }
 
+      var mutes = [];
+
+      var estart = end;
+      var eend = trackEnd;
+
+      var startOffset = estart - start;
+
+      for(var i = 0; i < self.mutes.length; i++) {
+        if(self.mutes[i].end > startOffset) {
+          mutes.push({
+            start: self.mutes[i].start - estart + trackStart,
+            end: self.mutes[i].end - estart + trackStart,
+          });
+        }
+      }
+
       var trackData = {
         buffer: slicedAudioBuffer,
         start: start,
-        name: self.name + uuid.v4()
+        name: self.name + uuid.v4(),
+        mutes: mutes
       }
 
       self.ee.emit("addtrack", trackData);
@@ -118,13 +158,33 @@ export default class {
       if(error) {
         return console.log(error);
       }
-      startBuffer = slicedAudioBuffer
+
+      self.buffer = slicedAudioBuffer;
+      self.duration = self.buffer.duration;
+      self.endTime = self.startTime + self.duration;
+      self.playout.setBuffer(slicedAudioBuffer);
+
+      var mutesToRemove = [];
+
+      for(var i = 0; i < self.mutes.length; i++) {
+        self.mutes[i].start;
+        self.mutes[i].end;
+
+        if(self.mutes[i].end > self.duration) {
+          if(self.mutes[i].start < self.duration) {
+            self.mutes[i].end = self.duration;
+          } else {
+            mutesToRemove.push(i);
+          }
+        }
+      }
+
+      for(var i = mutesToRemove.length -1; i >= 0; i--) {
+        self.mutes.splice(mutesToRemove[i], 1);
+      }
     });
 
-    this.buffer = startBuffer;
-    this.duration = this.buffer.duration;
-    this.endTime = this.startTime + this.duration;
-    self.playout.setBuffer(startBuffer);
+
   }
 
   /*
