@@ -15,6 +15,8 @@ import FadeCanvasHook from './render/FadeCanvasHook';
 import MuteCanvasHook from './render/MuteCanvasHook';
 import VolumeSliderHook from './render/VolumeSliderHook';
 
+import audioBufferSlice from 'audiobuffer-slice';
+
 const MAX_CANVAS_WIDTH = 1000;
 
 export default class {
@@ -63,6 +65,66 @@ export default class {
     this.cueOut = cueOut;
     this.duration = this.cueOut - this.cueIn;
     this.endTime = this.startTime + this.duration;
+  }
+
+  slice(start, end) {
+    const self = this;
+    const trackStart = this.getStartTime();
+    const trackEnd = this.buffer.duration + trackStart;
+    const offset = this.cueIn - trackStart;
+
+    start < trackStart? start = trackStart : start = start;
+    end > trackEnd? end = trackEnd : end = end;
+
+    audioBufferSlice(this.buffer, (offset+start)*1000, (end+offset)*1000, function(error, slicedAudioBuffer) {
+      if(error) {
+        return console.log(error);
+      }
+      self.buffer = slicedAudioBuffer;
+      self.playout.setBuffer(slicedAudioBuffer);
+      if (start > trackStart) {
+        self.setStartTime(start);
+      }
+    })
+  }
+
+  deleteSelection(start, end) {
+    const self = this;
+    const trackStart = this.getStartTime();
+    const trackEnd = this.buffer.duration + trackStart;
+    const offset = this.cueIn - trackStart;
+
+    start < trackStart? start = trackStart : start = start;
+    end > trackEnd? end = trackEnd : end = end;
+
+    var startBuffer;
+    var endBuffer;
+
+    audioBufferSlice(this.buffer, (end+offset)*1000, (trackEnd+offset)*1000, function(error, slicedAudioBuffer) {
+      if(error) {
+        return console.log(error);
+      }
+
+      var trackData = {
+        buffer: slicedAudioBuffer,
+        start: start,
+        name: self.name + uuid.v4()
+      }
+
+      self.ee.emit("addtrack", trackData);
+    });
+
+    audioBufferSlice(this.buffer, 0, (offset+start)*1000, function(error, slicedAudioBuffer) {
+      if(error) {
+        return console.log(error);
+      }
+      startBuffer = slicedAudioBuffer
+    });
+
+    this.buffer = startBuffer;
+    this.duration = this.buffer.duration;
+    this.endTime = this.startTime + this.duration;
+    self.playout.setBuffer(startBuffer);
   }
 
   /*

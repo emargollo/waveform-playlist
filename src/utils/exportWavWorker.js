@@ -114,6 +114,7 @@ export default function () {
         break;
       }
       case 'record': {
+        console.log(e);
         record(e.data.buffer);
         break;
       }

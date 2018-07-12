@@ -49,6 +49,8 @@
     "css": "styles"
   },
   "dependencies": {
+    "audiobuffer-slice": "0.0.7",
+    "audiobuffer-to-wav": "^1.0.0",
     "event-emitter": "^0.3.4",
     "fade-curves": "^1.0.2",
     "fade-maker": "^1.0.3",
@@ -68,7 +70,7 @@
     "watch": "npm-watch",
     "clean": "rm -Rf dist && rm -Rf lib && rm -Rf styles",
     "styles": "mkdir -p styles && cp ghpages/_sass/_playlist.scss styles/playlist.scss",
-    "compile": "babel src --out-dir lib",
+    "compile": "babel src --out-dir lib --watch",
     "jekyll": "jekyll build -s ghpages -d dist/waveform-playlist",
     "jekyll:dev": "jekyll build -s ghpages -d dist/waveform-playlist --watch &",
     "ghpages": "gh-pages --repo https://$GH_TOKEN@github.com/naomiaro/waveform-playlist.git -d dist/waveform-playlist",
