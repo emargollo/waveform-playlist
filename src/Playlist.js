@@ -354,6 +354,7 @@ export default class {
         const peaks = info.peaks || { type: 'WebAudio', mono: this.mono };
         const customClass = info.customClass || undefined;
         const waveOutlineColor = info.waveOutlineColor || undefined;
+        const mutes = info.mutes || [];
 
         // webaudio specific playout for now.
         const playout = new Playout(this.ac, audioBuffer);
@@ -383,6 +384,10 @@ export default class {
 
         if (peaks !== undefined) {
           track.setPeakData(peaks);
+        }
+
+        if(mutes != undefined) {
+          track.setMutes(mutes);
         }
 
         track.setState(this.getState());
