@@ -13,7 +13,7 @@ export default class {
   click(e) {
     e.preventDefault();
 
-    const startX = e.offsetX;
+    const startX = e.offsetX + e.srcElement.offsetLeft;
     const startTime = pixelsToSeconds(startX, this.samplesPerPixel, this.sampleRate);
 
     this.track.ee.emit('select', startTime, startTime, this.track);

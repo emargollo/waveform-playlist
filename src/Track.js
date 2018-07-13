@@ -17,7 +17,7 @@ import VolumeSliderHook from './render/VolumeSliderHook';
 
 import audioBufferSlice from 'audiobuffer-slice';
 
-const MAX_CANVAS_WIDTH = 1000;
+const MAX_CANVAS_WIDTH = 1000000;
 
 export default class {
 
@@ -44,6 +44,13 @@ export default class {
     this.ee = ee;
   }
 
+  setComposedTrack(composedTrack) {
+    this.composedTrack = composedTrack;
+  }
+
+  getComposedTrack() {
+    return this.composedTrack;
+  }
   setName(name) {
     this.name = name;
   }
@@ -78,7 +85,7 @@ export default class {
 
     audioBufferSlice(this.buffer, (offset+start)*1000, (end+offset)*1000, function(error, slicedAudioBuffer) {
       if(error) {
-        return console.log(error);
+        return console.error(error);
       }
       self.buffer = slicedAudioBuffer;
       self.playout.setBuffer(slicedAudioBuffer);
@@ -125,7 +132,7 @@ export default class {
 
     audioBufferSlice(this.buffer, (end+offset)*1000, (trackEnd+offset)*1000, function(error, slicedAudioBuffer) {
       if(error) {
-        return console.log(error);
+        return console.error(error);
       }
 
       var mutes = [];
@@ -156,7 +163,7 @@ export default class {
 
     audioBufferSlice(this.buffer, 0, (offset+start)*1000, function(error, slicedAudioBuffer) {
       if(error) {
-        return console.log(error);
+        return console.error(error);
       }
 
       self.buffer = slicedAudioBuffer;
@@ -372,6 +379,10 @@ export default class {
     return this.duration;
   }
 
+  getPeaks() {
+    return this.peaks;
+  }
+
   isPlaying() {
     return this.playout.isPlaying();
   }
@@ -491,12 +502,12 @@ export default class {
     this.playout.stop(when);
   }
 
-  renderOverlay(data) {
+  renderOverlay(data, start, width) {
     const channelPixels = secondsToPixels(data.playlistLength, data.resolution, data.sampleRate);
 
     const config = {
       attributes: {
-        style: `position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: ${channelPixels}px; z-index: 9;`,
+        style: `position: absolute; top: 0; right: 0; bottom: 0; left: ${start}px; width: ${width}px; z-index: 9;`,
       },
     };
 
@@ -517,69 +528,12 @@ export default class {
     return h(`div.playlist-overlay${overlayClass}`, config);
   }
 
-  renderControls(data) {
-    const muteClass = data.muted ? '.active' : '';
-    const soloClass = data.soloed ? '.active' : '';
-    const numChan = this.peaks.data.length;
-
-    return h('div.controls',
-      {
-        attributes: {
-          style: `height: ${numChan * data.height}px; width: ${data.controls.width}px; position: absolute; left: 0; z-index: 10;`,
-        },
-      }, [
-        h('header', [
-          h('span', {
-            attributes: {
-              style: `width: 20px; float: left; cursor: pointer`
-            },
-            onclick: () => {
-              this.ee.emit('close', this);
-            }
-          }, ['X']),
-          h('div', {
-            attributes: {
-              style: `width: ${data.controls.width - 40}px; float: left;`
-            }
-          }, [this.name]),
-        ]),
-        h('div.btn-group', [
-          h(`span.btn.btn-default.btn-xs.btn-mute${muteClass}`, {
-            onclick: () => {
-              this.ee.emit('mute', this);
-            },
-          }, ['Mute']),
-          h(`span.btn.btn-default.btn-xs.btn-solo${soloClass}`, {
-            onclick: () => {
-              this.ee.emit('solo', this);
-            },
-          }, ['Solo']),
-        ]),
-        h('label', [
-          h('input.volume-slider', {
-            attributes: {
-              type: 'range',
-              min: 0,
-              max: 100,
-              value: 100,
-            },
-            hook: new VolumeSliderHook(this.gain),
-            oninput: (e) => {
-              this.ee.emit('volumechange', e.target.value, this);
-            },
-          }),
-        ]),
-      ],
-    );
-  }
-
   render(data) {
     const width = this.peaks.length;
     const playbackX = secondsToPixels(data.playbackSeconds, data.resolution, data.sampleRate);
     const startX = secondsToPixels(this.startTime, data.resolution, data.sampleRate);
     const endX = secondsToPixels(this.endTime, data.resolution, data.sampleRate);
     let progressWidth = 0;
-    const numChan = this.peaks.data.length;
 
     if (playbackX > 0 && playbackX > startX) {
       if (playbackX < endX) {
@@ -589,13 +543,7 @@ export default class {
       }
     }
 
-    const waveformChildren = [
-      h('div.cursor', {
-        attributes: {
-          style: `position: absolute; width: 1px; margin: 0; padding: 0; top: 0; left: ${playbackX}px; bottom: 0; z-index: 5;`,
-        },
-      }),
-    ];
+    const waveformChildren = [];
 
     const channels = Object.keys(this.peaks.data).map((channelNum) => {
       const channelChildren = [
@@ -744,52 +692,10 @@ export default class {
     });
 
     waveformChildren.push(channels);
-    waveformChildren.push(this.renderOverlay(data));
+    waveformChildren.push(this.renderOverlay(data, startX, width));
 
-    // draw cursor selection on active track.
-    if (data.isActive === true) {
-      const cStartX = secondsToPixels(data.timeSelection.start, data.resolution, data.sampleRate);
-      const cEndX = secondsToPixels(data.timeSelection.end, data.resolution, data.sampleRate);
-      const cWidth = (cEndX - cStartX) + 1;
-      const cClassName = (cWidth > 1) ? '.segment' : '.point';
 
-      waveformChildren.push(h(`div.selection${cClassName}`, {
-        attributes: {
-          style: `position: absolute; width: ${cWidth}px; bottom: 0; top: 0; left: ${cStartX}px; z-index: 4;`,
-        },
-      }));
-    }
-
-    const waveform = h('div.waveform',
-      {
-        attributes: {
-          style: `height: ${numChan * data.height}px; position: relative;`,
-        },
-      },
-      waveformChildren,
-    );
-
-    const channelChildren = [];
-    let channelMargin = 0;
-
-    if (data.controls.show) {
-      channelChildren.push(this.renderControls(data));
-      channelMargin = data.controls.width;
-    }
-
-    channelChildren.push(waveform);
-
-    const audibleClass = data.shouldPlay ? '' : '.silent';
-    const customClass = (this.customClass === undefined) ? '' : `.${this.customClass}`;
-
-    return h(`div.channel-wrapper${audibleClass}${customClass}`,
-      {
-        attributes: {
-          style: `margin-left: ${channelMargin}px; height: ${data.height * numChan}px;`,
-        },
-      },
-      channelChildren,
-    );
+    return waveformChildren;
   }
 
   getTrackDetails() {

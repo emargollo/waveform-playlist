@@ -113,8 +113,6 @@ export function trim() {
   const track = this.getActiveTrack();
   const timeSelection = this.getTimeSelection();
 
-  console.log(timeSelection);
-
   track.trim(timeSelection.start, timeSelection.end);
   track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
 

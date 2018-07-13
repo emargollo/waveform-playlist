@@ -29,7 +29,7 @@ export default class {
     e.preventDefault();
     this.active = true;
 
-    this.startX = e.offsetX;
+    this.startX = e.offsetX + e.srcElement.offsetLeft;
     const startTime = pixelsToSeconds(this.startX, this.samplesPerPixel, this.sampleRate);
 
     this.track.ee.emit('select', startTime, startTime, this.track);
@@ -38,21 +38,21 @@ export default class {
   mousemove(e) {
     if (this.active) {
       e.preventDefault();
-      this.emitSelection(e.offsetX);
+      this.emitSelection(e.offsetX + e.srcElement.offsetLeft);
     }
   }
 
   mouseup(e) {
     if (this.active) {
       e.preventDefault();
-      this.complete(e.offsetX);
+      this.complete(e.offsetX + e.srcElement.offsetLeft);
     }
   }
 
   mouseleave(e) {
     if (this.active) {
       e.preventDefault();
-      this.complete(e.offsetX);
+      this.complete(e.offsetX + e.srcElement.offsetLeft);
     }
   }
 

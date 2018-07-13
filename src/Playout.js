@@ -57,7 +57,6 @@ export default class {
         this.shouldPlayGain.disconnect();
         this.masterGain.disconnect();
 
-
         this.source = undefined;
         this.fadeGain = undefined;
         this.volumeGain = undefined;

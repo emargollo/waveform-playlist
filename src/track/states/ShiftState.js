@@ -28,28 +28,28 @@ export default class {
 
     this.active = true;
     this.el = e.target;
-    this.prevX = e.offsetX;
+    this.prevX = e.offsetX + e.srcElement.offsetLeft;
   }
 
   mousemove(e) {
     if (this.active) {
       e.preventDefault();
-      this.emitShift(e.offsetX);
+      this.emitShift(e.offsetX + e.srcElement.offsetLeft);
     }
   }
 
   mouseup(e) {
     if (this.active) {
       e.preventDefault();
-      this.complete(e.offsetX);
+      this.complete(e.offsetX + e.srcElement.offsetLeft);
     }
   }
 
   mouseleave(e) {
-    if (this.active) {
-      e.preventDefault();
-      this.complete(e.offsetX);
-    }
+    // if (this.active) {
+    //   e.preventDefault();
+    //   this.complete(e.offsetX + e.srcElement.offsetLeft);
+    // }
   }
 
   static getClass() {

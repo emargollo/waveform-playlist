@@ -11,7 +11,7 @@ export default class {
   }
 
   click(e) {
-    const startX = e.offsetX;
+    const startX = e.offsetX + e.srcElement.offsetLeft;
     const time = pixelsToSeconds(startX, this.samplesPerPixel, this.sampleRate);
 
     if (time > this.track.getStartTime() && time < this.track.getEndTime()) {

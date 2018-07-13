@@ -40,6 +40,10 @@ class CanvasHook {
       const maxPeak = this.peaks[((i + this.offset) * 2) + 1] / maxValue;
       CanvasHook.drawFrame(cc, h2, i, minPeak, maxPeak);
     }
+
+    cc.lineWidth = 2;
+    cc.strokeStyle="#000000";
+    cc.strokeRect(0, 0, canvas.width, canvas.height);
   }
 }
 

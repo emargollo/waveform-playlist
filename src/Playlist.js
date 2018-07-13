@@ -10,6 +10,7 @@ import LoaderFactory from './track/loader/LoaderFactory';
 import ScrollHook from './render/ScrollHook';
 import TimeScale from './TimeScale';
 import Track from './Track';
+import ComposedTrack from './ComposedTrack';
 import Playout from './Playout';
 import AnnotationList from './annotation/AnnotationList';
 
@@ -47,57 +48,58 @@ export default class {
   }
 
   // TODO extract into a plugin
-  initRecorder(stream) {
-    this.mediaRecorder = new window.MediaRecorder(stream);
 
-    this.mediaRecorder.onstart = () => {
-      const track = new Track();
-      track.setName('Recording');
-      track.setEnabledStates();
-      track.setEventEmitter(this.ee);
-
-      this.recordingTrack = track;
-      this.tracks.push(track);
-
-      this.chunks = [];
-      this.working = false;
-    };
-
-    this.mediaRecorder.ondataavailable = (e) => {
-      this.chunks.push(e.data);
-
-      // throttle peaks calculation
-      if (!this.working) {
-        const recording = new Blob(this.chunks, { type: 'audio/ogg; codecs=opus' });
-        const loader = LoaderFactory.createLoader(recording, this.ac);
-        loader.load().then((audioBuffer) => {
-          // ask web worker for peaks.
-          this.recorderWorker.postMessage({
-            samples: audioBuffer.getChannelData(0),
-            samplesPerPixel: this.samplesPerPixel,
-          });
-          this.recordingTrack.setCues(0, audioBuffer.duration);
-          this.recordingTrack.setBuffer(audioBuffer);
-          this.recordingTrack.setPlayout(new Playout(this.ac, audioBuffer));
-          this.adjustDuration();
-        });
-        this.working = true;
-      }
-    };
-
-    this.mediaRecorder.onstop = () => {
-      this.chunks = [];
-      this.working = false;
-    };
-
-    this.recorderWorker = new InlineWorker(RecorderWorkerFunction);
-    // use a worker for calculating recording peaks.
-    this.recorderWorker.onmessage = (e) => {
-      this.recordingTrack.setPeaks(e.data);
-      this.working = false;
-      this.drawRequest();
-    };
-  }
+  // initRecorder(stream) {
+  //   this.mediaRecorder = new window.MediaRecorder(stream);
+  //
+  //   this.mediaRecorder.onstart = () => {
+  //     const track = new Track();
+  //     track.setName('Recording');
+  //     track.setEnabledStates();
+  //     track.setEventEmitter(this.ee);
+  //
+  //     this.recordingTrack = track;
+  //     this.tracks.push(track);
+  //
+  //     this.chunks = [];
+  //     this.working = false;
+  //   };
+  //
+  //   this.mediaRecorder.ondataavailable = (e) => {
+  //     this.chunks.push(e.data);
+  //
+  //     // throttle peaks calculation
+  //     if (!this.working) {
+  //       const recording = new Blob(this.chunks, { type: 'audio/ogg; codecs=opus' });
+  //       const loader = LoaderFactory.createLoader(recording, this.ac);
+  //       loader.load().then((audioBuffer) => {
+  //         // ask web worker for peaks.
+  //         this.recorderWorker.postMessage({
+  //           samples: audioBuffer.getChannelData(0),
+  //           samplesPerPixel: this.samplesPerPixel,
+  //         });
+  //         this.recordingTrack.setCues(0, audioBuffer.duration);
+  //         this.recordingTrack.setBuffer(audioBuffer);
+  //         this.recordingTrack.setPlayout(new Playout(this.ac, audioBuffer));
+  //         this.adjustDuration();
+  //       });
+  //       this.working = true;
+  //     }
+  //   };
+  //
+  //   this.mediaRecorder.onstop = () => {
+  //     this.chunks = [];
+  //     this.working = false;
+  //   };
+  //
+  //   this.recorderWorker = new InlineWorker(RecorderWorkerFunction);
+  //   // use a worker for calculating recording peaks.
+  //   this.recorderWorker.onmessage = (e) => {
+  //     this.recordingTrack.setPeaks(e.data);
+  //     this.working = false;
+  //     this.drawRequest();
+  //   };
+  // }
 
   setShowTimeScale(show) {
     this.showTimescale = show;
@@ -285,12 +287,15 @@ export default class {
       // this.audioBufferRender(audioBuffer);
       var wav = bufferToWav(data.buffer);
       var blob = new Blob([new DataView(wav)], {type: 'audio/wav'});
-      this.load([{
+
+      const track = this.getActiveTrack();
+
+      this.loadIntoTrack({
         src: blob,
         name: data.name,
         start: data.start,
         mutes: data.mutes,
-      }]);
+      }, track);
     });
 
     ee.on('slice', () => {
@@ -445,12 +450,117 @@ export default class {
         return track;
       });
 
-      this.tracks = this.tracks.concat(tracks);
+      const composedTracks = [];
+
+      tracks.forEach((track) => {
+        var composedTrack = new ComposedTrack();
+        composedTrack.name = track.name;
+        composedTrack.tracks.push(track);
+        composedTracks.push(composedTrack);
+        composedTrack.setEventEmitter(this.ee);
+        track.setComposedTrack(composedTrack);
+      })
+
+      this.tracks = this.tracks.concat(composedTracks);
       this.adjustDuration();
       this.draw(this.render());
 
       this.ee.emit('audiosourcesrendered');
     });
+  }
+
+  loadIntoTrack(trackData, selectedTrack) {
+    const loadPromise = (trackData) => {
+      const loader = LoaderFactory.createLoader(trackData.src, this.ac, this.ee);
+      return loader.load();
+    };
+
+    return loadPromise(trackData).then((audioBuffer) => {
+      this.ee.emit('audiosourcesloaded');
+
+      const ftrack = (audioBuffer) => {
+        const info = trackData;
+        const name = info.name || 'Untitled';
+        const start = info.start || 0;
+        const states = info.states || {};
+        const fadeIn = info.fadeIn;
+        const fadeOut = info.fadeOut;
+        const cueIn = info.cuein || 0;
+        const cueOut = info.cueout || audioBuffer.duration;
+        const gain = info.gain || 1;
+        const muted = info.muted || false;
+        const soloed = info.soloed || false;
+        const selection = info.selected;
+        const peaks = info.peaks || { type: 'WebAudio', mono: this.mono };
+        const customClass = info.customClass || undefined;
+        const waveOutlineColor = info.waveOutlineColor || undefined;
+        const mutes = info.mutes || [];
+
+        // webaudio specific playout for now.
+        const playout = new Playout(this.ac, audioBuffer);
+
+        const track = new Track();
+        track.src = info.src;
+        track.setBuffer(audioBuffer);
+        track.setName(name);
+        track.setEventEmitter(this.ee);
+        track.setEnabledStates(states);
+        track.setCues(cueIn, cueOut);
+        track.setCustomClass(customClass);
+        track.setWaveOutlineColor(waveOutlineColor);
+
+        if (fadeIn !== undefined) {
+          track.setFadeIn(fadeIn.duration, fadeIn.shape);
+        }
+
+        if (fadeOut !== undefined) {
+          track.setFadeOut(fadeOut.duration, fadeOut.shape);
+        }
+
+        if (selection !== undefined) {
+          this.setActiveTrack(track);
+          this.setTimeSelection(selection.start, selection.end);
+        }
+
+        if (peaks !== undefined) {
+          track.setPeakData(peaks);
+        }
+
+        if(mutes != undefined) {
+          track.setMutes(mutes);
+        }
+
+        track.setState(this.getState());
+        track.setStartTime(start);
+        track.setPlayout(playout);
+
+        track.setGainLevel(gain);
+
+        if (muted) {
+          this.muteTrack(track);
+        }
+
+        if (soloed) {
+          this.soloTrack(track);
+        }
+
+        // extract peaks with AudioContext for now.
+        track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
+
+        return track;
+      };
+
+      var track = ftrack(audioBuffer);
+      track.setComposedTrack(selectedTrack.getComposedTrack())
+
+      selectedTrack.getComposedTrack().addTrack(track);
+
+      this.adjustDuration();
+      this.draw(this.render());
+
+      this.ee.emit('audiosourcesrendered');
+    });
+
   }
 
   /*
@@ -615,7 +725,9 @@ export default class {
 
   adjustDuration() {
     this.duration = this.tracks.reduce(
-      (duration, track) => Math.max(duration, track.getEndTime()),
+      (duration, track) => {
+        return Math.max(duration, track.getEndTime());
+      },
       0,
     );
   }
@@ -641,7 +753,9 @@ export default class {
 
   isPlaying() {
     return this.tracks.reduce(
-      (isPlaying, track) => isPlaying || track.isPlaying(),
+      (isPlaying, track) => {
+          return isPlaying || track.isPlaying()
+      },
       false,
     );
   }
@@ -693,10 +807,13 @@ export default class {
 
     this.tracks.forEach((track) => {
       track.setState('cursor');
-      playoutPromises.push(track.schedulePlay(currentTime, start, end, {
+      var promises = track.schedulePlay(currentTime, start, end, {
         shouldPlay: this.shouldTrackPlay(track),
         masterGain: this.masterGain,
-      }));
+      });
+      promises.forEach((promise) => {
+        playoutPromises.push(promise);
+      })
     });
 
     this.lastPlay = currentTime;
@@ -779,10 +896,13 @@ export default class {
     this.mediaRecorder.start(300);
 
     this.tracks.forEach((track) => {
-      track.setState('none');
-      playoutPromises.push(track.schedulePlay(this.ac.currentTime, 0, undefined, {
+      track.setState('cursor');
+      var promises = track.schedulePlay(this.ac.currentTime, 0, undefined, {
         shouldPlay: this.shouldTrackPlay(track),
-      }));
+      });
+      promises.forEach((promise) => {
+        playoutPromises.push(promise);
+      })
     });
 
     this.playoutPromises = playoutPromises;
@@ -891,9 +1011,17 @@ export default class {
   }
 
   isActiveTrack(track) {
+
     const activeTrack = this.getActiveTrack();
 
     if (this.isSegmentSelection()) {
+      if(track.tracks != undefined) {
+        var isActive = false;
+        track.tracks.forEach((t) => {
+          if(t === activeTrack) isActive = true;
+        });
+        return isActive;
+      }
       return activeTrack === track;
     }
 
