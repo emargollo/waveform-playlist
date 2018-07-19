@@ -14,7 +14,9 @@ export default class {
   emitShift(x) {
     const deltaX = x - this.prevX;
     const deltaTime = pixelsToSeconds(deltaX, this.samplesPerPixel, this.sampleRate);
+    this.lastX = this.prevX;
     this.prevX = x;
+    
     this.track.ee.emit('shift', deltaTime, this.track);
   }
 
@@ -46,10 +48,10 @@ export default class {
   }
 
   mouseleave(e) {
-    // if (this.active) {
-    //   e.preventDefault();
-    //   this.complete(e.offsetX + e.srcElement.offsetLeft);
-    // }
+    if (this.active) {
+      e.preventDefault();
+      this.complete(e.offsetX + e.srcElement.offsetLeft);
+    }
   }
 
   static getClass() {
@@ -57,6 +59,6 @@ export default class {
   }
 
   static getEvents() {
-    return ['mousedown', 'mousemove', 'mouseup', 'mouseleave'];
+    return ['mousedown'];
   }
 }

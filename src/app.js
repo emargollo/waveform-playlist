@@ -53,6 +53,7 @@ export function init(options = {}, ee = EventEmitter()) {
   }
 
   const playlist = new Playlist();
+  playlist.setUpWindowEvents();
   playlist.setSampleRate(config.sampleRate);
   playlist.setSamplesPerPixel(config.samplesPerPixel);
   playlist.setAudioContext(config.ac);

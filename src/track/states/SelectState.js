@@ -25,9 +25,15 @@ export default class {
     this.active = false;
   }
 
+  click(e) {
+    e.stopPropagation()
+
+  }
+
   mousedown(e) {
     e.preventDefault();
     this.active = true;
+    e.stopPropagation()
 
     this.startX = e.offsetX + e.srcElement.offsetLeft;
     const startTime = pixelsToSeconds(this.startX, this.samplesPerPixel, this.sampleRate);
@@ -44,6 +50,7 @@ export default class {
 
   mouseup(e) {
     if (this.active) {
+      e.stopPropagation()
       e.preventDefault();
       this.complete(e.offsetX + e.srcElement.offsetLeft);
     }
@@ -51,6 +58,7 @@ export default class {
 
   mouseleave(e) {
     if (this.active) {
+      e.stopPropagation()
       e.preventDefault();
       this.complete(e.offsetX + e.srcElement.offsetLeft);
     }
@@ -61,6 +69,6 @@ export default class {
   }
 
   static getEvents() {
-    return ['mousedown', 'mousemove', 'mouseup', 'mouseleave'];
+    return ['mousedown', 'mouseleave', 'click'];
   }
 }

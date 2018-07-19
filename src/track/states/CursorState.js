@@ -17,6 +17,7 @@ export default class {
     const startTime = pixelsToSeconds(startX, this.samplesPerPixel, this.sampleRate);
 
     this.track.ee.emit('select', startTime, startTime, this.track);
+    e.stopPropagation()
   }
 
   static getClass() {

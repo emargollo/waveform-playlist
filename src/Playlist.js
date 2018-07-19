@@ -42,6 +42,37 @@ export default class {
     this.resetDrawTimer = undefined;
   }
 
+  setUpWindowEvents() {
+    // window.onmouseup = function(e) {
+    //   var playlist = this.playlist;
+    //   if(playlist) {
+    //     playlist.tracks.forEach((composedtrack) => {
+    //       composedtrack.tracks.forEach((track) => {
+    //         try{
+    //           track.stateObj.mouseup(e);
+    //         } catch(er) {
+    //
+    //         }
+    //       })
+    //     })
+    //   }
+    // }
+    // window.onmousemove = function(e) {
+    //   var playlist = this.playlist;
+    //   if(playlist) {
+    //     playlist.tracks.forEach((composedtrack) => {
+    //       composedtrack.tracks.forEach((track) => {
+    //         try{
+    //           track.stateObj.mousemove(e);
+    //         } catch(er) {
+    //
+    //         }
+    //       })
+    //     })
+    //   }
+    // }
+  }
+
   // TODO extract into a plugin
   initExporter() {
     this.exportWorker = new InlineWorker(ExportWavWorkerFunction);
@@ -199,8 +230,19 @@ export default class {
     });
 
     ee.on('shift', (deltaTime, track) => {
-      track.setStartTime(track.getStartTime() + deltaTime);
-      this.adjustDuration();
+      var intersecting = false;
+      track.composedTrack.tracks.forEach((t) => {
+        if(t === track) {return;}
+
+        if(!(t.getEndTime() <= (track.getStartTime() + deltaTime) || (track.getEndTime() + deltaTime) <= t.getStartTime())) {
+          intersecting = true;
+        }
+      })
+      
+      if(!intersecting) {
+        track.setStartTime(track.getStartTime() + deltaTime);
+        this.adjustDuration();
+      }
       this.drawRequest();
     });
 
@@ -211,6 +253,10 @@ export default class {
     ee.on('play', (start, end) => {
       this.play(start, end);
     });
+
+    ee.on('play or stop', (start, end) => {
+      this.isPlaying() ?  this.stop() : this.play(start, end);
+    })
 
     ee.on('pause', () => {
       this.pause();
@@ -284,7 +330,7 @@ export default class {
     });
 
     ee.on('addtrack', (data) => {
-      // this.audioBufferRender(audioBuffer);
+      console.log("inserting track");
       var wav = bufferToWav(data.buffer);
       var blob = new Blob([new DataView(wav)], {type: 'audio/wav'});
 
@@ -297,6 +343,41 @@ export default class {
         mutes: data.mutes,
       }, track);
     });
+
+    ee.on('copy', () => {
+      const track = this.getActiveTrack();
+      const timeSelection = this.getTimeSelection();
+
+      this.clipboard = track.copySelection(timeSelection.start, timeSelection.end);
+    });
+
+    ee.on('paste', () => {
+      const track = this.getActiveTrack();
+      const start = this.cursor;
+
+
+      if(this.clipboard != undefined) {
+
+        if(!track.isComposed()) {
+          ee.emit('split', this.clipboard.duration);
+        }
+
+        this.clipboard.start = start;
+        ee.emit("addtrack", this.clipboard);
+      }
+
+    });
+
+    ee.on('split', (offset) => {
+      const track = this.getActiveTrack();
+      const timeSelection = this.getTimeSelection();
+
+      track.deleteSelection(timeSelection.start, timeSelection.end, offset);
+      track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
+
+      this.setTimeSelection(0, 0);
+      this.drawRequest();
+    })
 
     ee.on('slice', () => {
       const track = this.getActiveTrack();
@@ -586,7 +667,6 @@ export default class {
       start,
       end: (end === undefined) ? start : end,
     };
-
     this.cursor = start;
   }
 
@@ -1047,6 +1127,7 @@ export default class {
         shouldPlay: this.shouldTrackPlay(track),
         soloed: this.soloedTracks.indexOf(track) > -1,
         muted: this.mutedTracks.indexOf(track) > -1,
+        duration: this.duration
       })),
     );
 
@@ -1054,6 +1135,39 @@ export default class {
       {
         attributes: {
           style: 'overflow: auto;',
+        },
+        onmouseup: e => {
+          this.tracks.forEach((composedTrack) => {
+            composedTrack.tracks.forEach((track) => {
+              try{
+                track.stateObj.mouseup(e);
+              } catch(er) {
+
+              }
+            })
+          })
+        },
+        onmousemove: e => {
+          this.tracks.forEach((composedTrack) => {
+            composedTrack.tracks.forEach((track) => {
+              try{
+                track.stateObj.mousemove(e);
+              } catch(er) {
+
+              }
+            })
+          })
+        },
+        onmouseleave: e => {
+          this.tracks.forEach((composedTrack) => {
+            composedTrack.tracks.forEach((track) => {
+              try{
+                track.stateObj.mouseleave(e);
+              } catch(er) {
+
+              }
+            })
+          })
         },
         onscroll: (e) => {
           this.scrollLeft = pixelsToSeconds(

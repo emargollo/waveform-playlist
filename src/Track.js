@@ -74,6 +74,10 @@ export default class {
     this.endTime = this.startTime + this.duration;
   }
 
+  isComposed() {
+    return false;
+  }
+
   slice(start, end) {
     const self = this;
     const trackStart = this.getStartTime();
@@ -118,7 +122,56 @@ export default class {
     })
   }
 
-  deleteSelection(start, end) {
+  copySelection(start, end) {
+    const self = this;
+    const trackStart = this.getStartTime();
+    const trackEnd = this.buffer.duration + trackStart;
+    const offset = this.cueIn - trackStart;
+
+    start < trackStart? start = trackStart : start = start;
+    end > trackEnd? end = trackEnd : end = end;
+
+    var data = {};
+    var func = audioBufferSlice(this.buffer, (offset+start)*1000, (end+offset)*1000, function(error, slicedAudioBuffer) {
+
+      if(error) {
+        return console.error(error);
+      }
+      data.buffer = slicedAudioBuffer;
+      data.mutes = JSON.parse(JSON.stringify(self.mutes));
+      data.name = self.name + uuid.v4();
+      data.duration = (end - start);
+
+      if (start > trackStart) {
+
+        var startOffset = trackStart - start;
+
+        var mutesToRemove = [];
+
+        for(var i = 0; i < data.mutes.length; i++) {
+          data.mutes[i].start += startOffset;
+          data.mutes[i].end += startOffset;
+
+          if(data.mutes[i].end > self.duration) {
+            if(data.mutes[i].start < self.duration) {
+              data.mutes[i].end = self.duration;
+            } else {
+              mutesToRemove.push(i);
+            }
+          }
+        }
+
+        for(var i = mutesToRemove.length -1; i >= 0; i--) {
+          data.mutes.splice(mutesToRemove[i], 1);
+        }
+      }
+
+    })
+
+    return data;
+  }
+
+  deleteSelection(start, end, startoffset) {
     const self = this;
     const trackStart = this.getStartTime();
     const trackEnd = this.buffer.duration + trackStart;
@@ -129,6 +182,7 @@ export default class {
 
     var startBuffer;
     var endBuffer;
+    var removed = start - end;
 
     audioBufferSlice(this.buffer, (end+offset)*1000, (trackEnd+offset)*1000, function(error, slicedAudioBuffer) {
       if(error) {
@@ -153,7 +207,7 @@ export default class {
 
       var trackData = {
         buffer: slicedAudioBuffer,
-        start: start,
+        start: start + (startoffset || 0),
         name: self.name + uuid.v4(),
         mutes: mutes
       }
@@ -190,6 +244,12 @@ export default class {
         self.mutes.splice(mutesToRemove[i], 1);
       }
     });
+
+    this.composedTrack.tracks.forEach((track) => {
+      if(track.getStartTime() > end) {
+        this.ee.emit('shift', removed, track);
+      }
+    })
 
 
   }

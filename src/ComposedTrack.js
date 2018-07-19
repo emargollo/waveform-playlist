@@ -5,7 +5,7 @@ import _forOwn from 'lodash.forown';
 import uuid from 'uuid';
 import h from 'virtual-dom/h';
 
-import { secondsToPixels, secondsToSamples } from './utils/conversions';
+import { secondsToPixels, secondsToSamples, pixelsToSeconds } from './utils/conversions';
 import stateClasses from './track/states';
 
 import CanvasHook from './render/CanvasHook';
@@ -27,6 +27,12 @@ export default class {
 
   setEventEmitter(ee) {
     this.ee = ee;
+  }
+
+  setGainLevel(level) {
+    this.tracks.forEach((track) => {
+      track.setGainLevel(level);
+    });
   }
 
   setMasterGainLevel(level) {
@@ -152,6 +158,14 @@ export default class {
     );
   }
 
+  getComposedTrack() {
+    return this;
+  }
+
+  isComposed() {
+    return true;
+  }
+
   render(data) {
     const playbackX = secondsToPixels(data.playbackSeconds, data.resolution, data.sampleRate);
     var numChan = 0;
@@ -191,10 +205,15 @@ export default class {
     const waveform = h('div.waveform',
       {
         attributes: {
-          style: `height: ${numChan * data.height}px; position: relative;`,
+          style: `height: ${numChan * data.height}px; width: ${secondsToPixels(data.duration, data.resolution, data.sampleRate)}px; position: relative; cursor: text;`,
         },
+        onclick: e => {
+          const startX = e.offsetX;
+          const startTime = pixelsToSeconds(startX, data.resolution, data.sampleRate);
+          this.ee.emit('select', startTime, startTime, this);
+        }
       },
-      waveformChildren,
+      waveformChildren
     );
 
     const channelChildren = [];
