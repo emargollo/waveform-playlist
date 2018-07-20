@@ -229,20 +229,32 @@ export default class {
       this.drawRequest();
     });
 
-    ee.on('shift', (deltaTime, track) => {
+    ee.on('shift', (deltaTime, track, ignoreCollision) => {
       var intersecting = false;
+      var track2;
+      var newStart = Math.max(track.getStartTime() + deltaTime, 0);
+      var newEnd = newStart + track.duration
       track.composedTrack.tracks.forEach((t) => {
         if(t === track) {return;}
 
-        if(!(t.getEndTime() <= (track.getStartTime() + deltaTime) || (track.getEndTime() + deltaTime) <= t.getStartTime())) {
+        if(!(t.getEndTime() <= newStart || newEnd <= t.getStartTime())) {
           intersecting = true;
+          track2 = t;
         }
       })
-      
-      if(!intersecting) {
-        track.setStartTime(track.getStartTime() + deltaTime);
-        this.adjustDuration();
+
+      ignoreCollision == undefined? ignoreCollision = false : ignoreCollision = ignoreCollision;
+
+      if(intersecting && !ignoreCollision)  {
+        if(track.getStartTime() > track2.getStartTime()) {
+          deltaTime = track2.getEndTime() - track.getStartTime();
+        } else {
+          deltaTime = track2.getStartTime() - track.getEndTime();
+        }
+        ee.emit("accShift");
       }
+      track.setStartTime(Math.max(track.getStartTime() + deltaTime, 0));
+      this.adjustDuration();
       this.drawRequest();
     });
 
@@ -344,9 +356,16 @@ export default class {
       }, track);
     });
 
+    ee.on('cut', () => {
+      ee.emit('copy');
+      ee.emit('deleteselection');
+    })
+
     ee.on('copy', () => {
       const track = this.getActiveTrack();
       const timeSelection = this.getTimeSelection();
+
+      console.log(track)
 
       this.clipboard = track.copySelection(timeSelection.start, timeSelection.end);
     });
@@ -354,13 +373,20 @@ export default class {
     ee.on('paste', () => {
       const track = this.getActiveTrack();
       const start = this.cursor;
-
-
       if(this.clipboard != undefined) {
+
+        var composedTrack = track;
 
         if(!track.isComposed()) {
           ee.emit('split', this.clipboard.duration);
+          composedTrack = track.composedTrack;
         }
+
+        composedTrack.tracks.forEach((t) => {
+          if(t.getStartTime() > start) {
+            ee.emit("shift", this.clipboard.duration, t, true);
+          }
+        })
 
         this.clipboard.start = start;
         ee.emit("addtrack", this.clipboard);
@@ -393,6 +419,9 @@ export default class {
     ee.on('deleteselection', () => {
       const track = this.getActiveTrack();
       const timeSelection = this.getTimeSelection();
+      const deltaTime = timeSelection.end - timeSelection.start;
+
+      console.log(track);
 
       track.deleteSelection(timeSelection.start, timeSelection.end);
       track.calculatePeaks(this.samplesPerPixel, this.sampleRate);
@@ -547,6 +576,7 @@ export default class {
       this.draw(this.render());
 
       this.ee.emit('audiosourcesrendered');
+      return Promise.resolve(composedTracks);
     });
   }
 
@@ -680,12 +710,14 @@ export default class {
 
     const currentTime = this.offlineAudioContext.currentTime;
 
-    this.tracks.forEach((track) => {
-      track.setOfflinePlayout(new Playout(this.offlineAudioContext, track.buffer));
-      track.schedulePlay(currentTime, 0, 0, {
-        shouldPlay: this.shouldTrackPlay(track),
-        masterGain: 1,
-        isOffline: true,
+    this.tracks.forEach((composedtrack) => {
+      composedtrack.tracks.forEach((track) => {
+        track.setOfflinePlayout(new Playout(this.offlineAudioContext, track.buffer));
+        track.schedulePlay(currentTime, 0, 0, {
+          shouldPlay: this.shouldTrackPlay(composedtrack),
+          masterGain: 1,
+          isOffline: true,
+        });
       });
     });
 
@@ -1135,39 +1167,6 @@ export default class {
       {
         attributes: {
           style: 'overflow: auto;',
-        },
-        onmouseup: e => {
-          this.tracks.forEach((composedTrack) => {
-            composedTrack.tracks.forEach((track) => {
-              try{
-                track.stateObj.mouseup(e);
-              } catch(er) {
-
-              }
-            })
-          })
-        },
-        onmousemove: e => {
-          this.tracks.forEach((composedTrack) => {
-            composedTrack.tracks.forEach((track) => {
-              try{
-                track.stateObj.mousemove(e);
-              } catch(er) {
-
-              }
-            })
-          })
-        },
-        onmouseleave: e => {
-          this.tracks.forEach((composedTrack) => {
-            composedTrack.tracks.forEach((track) => {
-              try{
-                track.stateObj.mouseleave(e);
-              } catch(er) {
-
-              }
-            })
-          })
         },
         onscroll: (e) => {
           this.scrollLeft = pixelsToSeconds(

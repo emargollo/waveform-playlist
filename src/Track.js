@@ -177,12 +177,15 @@ export default class {
     const trackEnd = this.buffer.duration + trackStart;
     const offset = this.cueIn - trackStart;
 
+    console.log(end);
+
     start < trackStart? start = trackStart : start = start;
     end > trackEnd? end = trackEnd : end = end;
 
     var startBuffer;
     var endBuffer;
     var removed = start - end;
+
 
     audioBufferSlice(this.buffer, (end+offset)*1000, (trackEnd+offset)*1000, function(error, slicedAudioBuffer) {
       if(error) {
@@ -214,6 +217,16 @@ export default class {
 
       self.ee.emit("addtrack", trackData);
     });
+
+    if(this.getStartTime() == start) {
+      this.composedTrack.tracks.forEach((track) => {
+        if(track.getStartTime() > end) {
+          this.ee.emit('shift', removed, track, true);
+        }
+      })
+      this.composedTrack.tracks.splice(this.composedTrack.tracks.indexOf(this), 1);
+      return
+    }
 
     audioBufferSlice(this.buffer, 0, (offset+start)*1000, function(error, slicedAudioBuffer) {
       if(error) {
@@ -247,11 +260,9 @@ export default class {
 
     this.composedTrack.tracks.forEach((track) => {
       if(track.getStartTime() > end) {
-        this.ee.emit('shift', removed, track);
+        this.ee.emit('shift', removed, track, true);
       }
     })
-
-
   }
 
   /*

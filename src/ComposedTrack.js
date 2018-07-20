@@ -168,7 +168,7 @@ export default class {
 
   render(data) {
     const playbackX = secondsToPixels(data.playbackSeconds, data.resolution, data.sampleRate);
-    var numChan = 0;
+    var numChan = 1;
 
     const waveformChildren = [
       h('div.cursor', {
@@ -207,10 +207,44 @@ export default class {
         attributes: {
           style: `height: ${numChan * data.height}px; width: ${secondsToPixels(data.duration, data.resolution, data.sampleRate)}px; position: relative; cursor: text;`,
         },
-        onclick: e => {
-          const startX = e.offsetX;
-          const startTime = pixelsToSeconds(startX, data.resolution, data.sampleRate);
-          this.ee.emit('select', startTime, startTime, this);
+        onmousedown: e => {
+          this.isActive = true;
+        },
+        onmouseup: e => {
+          if(this.isActive) {
+            this.isActive = false;
+            const startX = e.offsetX;
+            const startTime = pixelsToSeconds(startX, data.resolution, data.sampleRate);
+            this.ee.emit('select', startTime, startTime, this);
+          }
+          this.tracks.forEach((track) => {
+            try{
+              track.stateObj.mouseup(e);
+            } catch(er) {
+
+            }
+          })
+        },
+        onmousemove: e => {
+          this.tracks.forEach((track) => {
+            try{
+              track.stateObj.mousemove(e);
+            } catch(er) {
+
+            }
+          })
+        },
+        onmouseleave: e => {
+          if(this.isActive) {
+            this.isActive = false;
+          }
+          this.tracks.forEach((track) => {
+            try{
+              track.stateObj.mouseleave(e);
+            } catch(er) {
+
+            }
+          })
         }
       },
       waveformChildren

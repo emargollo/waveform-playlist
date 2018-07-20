@@ -9,6 +9,10 @@ export default class {
   setup(samplesPerPixel, sampleRate) {
     this.samplesPerPixel = samplesPerPixel;
     this.sampleRate = sampleRate;
+
+    this.track.ee.on("accShift", () => {
+      this.prevX = this.lastX;
+    })
   }
 
   emitShift(x) {
@@ -16,7 +20,7 @@ export default class {
     const deltaTime = pixelsToSeconds(deltaX, this.samplesPerPixel, this.sampleRate);
     this.lastX = this.prevX;
     this.prevX = x;
-    
+
     this.track.ee.emit('shift', deltaTime, this.track);
   }
 
@@ -27,30 +31,31 @@ export default class {
 
   mousedown(e) {
     e.preventDefault();
+    e.stopPropagation()
 
     this.active = true;
     this.el = e.target;
-    this.prevX = e.offsetX + e.srcElement.offsetLeft;
+    this.prevX = e.screenX;
   }
 
   mousemove(e) {
     if (this.active) {
       e.preventDefault();
-      this.emitShift(e.offsetX + e.srcElement.offsetLeft);
+      this.emitShift(e.screenX);
     }
   }
 
   mouseup(e) {
     if (this.active) {
       e.preventDefault();
-      this.complete(e.offsetX + e.srcElement.offsetLeft);
+      this.complete(e.screenX);
     }
   }
 
   mouseleave(e) {
     if (this.active) {
       e.preventDefault();
-      this.complete(e.offsetX + e.srcElement.offsetLeft);
+      this.complete(e.screenX);
     }
   }
 
